@@ -249,7 +249,7 @@ def pca_denoising(in_file, ps=2, overcomplete=True):
 
     # Load data
     img = nb.load(in_file)
-    dwi = img.get_data
+    dwi = img.get_data()
 
     # Compute dimension of neighbour sliding window
     m = (2*ps + 1) ** 3
@@ -315,13 +315,12 @@ def pca_denoising(in_file, ps=2, overcomplete=True):
         ncomps = ncomps / wei[..., 0]
         sig2 = sig2 / wei[..., 0]
 
-
-
-    nii = nb.load(in_file)
-    new_nii = nb.Nifti1Image(nii.get_data()[:,:,:,t_min:], nii.get_affine(), nii.get_header())
-    new_nii.set_data_dtype(np.float32)
     _, base, _ = split_filename(in_file)
-    nb.save(new_nii, base + "_roi.nii.gz")
-    return os.path.abspath(base + "_roi.nii.gz")
+    den_path = base + 'mp_denoised.nii.gz'
+    sig_path = base + 'mp_sigmas.nii.gz'
+    comp_path = base + 'mp_comps.nii.gz'
+    nb.save(nb.Nifti1Image(den, img.affine, img.header), den_path)
+    nb.save(nb.Nifti1Image(np.sqrt(sig2), img.affine, img.header), sig_path)
+    nb.save(nb.Nifti1Image(ncomps, img.affine, img.header), comp_path)
 
-    return den, np.sqrt(sig2), ncomps
+    return os.path.abspath(den_path), os.path.abspath(sig_path), os.path.abspath(comp_path)

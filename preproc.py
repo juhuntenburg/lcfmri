@@ -1,4 +1,4 @@
-from nipype.pipeline.engine import Node, Workflow, MapNode
+in_filefrom nipype.pipeline.engine import Node, Workflow, MapNode
 import nipype.interfaces.fsl as fsl
 import nipype.interfaces.utility as util
 import nipype.interfaces.io as nio
@@ -64,12 +64,12 @@ remove_vol.inputs.t_min = vol_to_remove
 preproc.connect([(selectfiles, remove_vol, [('rest', 'in_file')])])
 
 # Thermal noise removal
-func_denoise = Node(util.Function(input_names=['dwi'],
+func_denoise = Node(util.Function(input_names=['in_file'],
                                     output_names=['denoised_data', 'sigmas',
                                                   'preserved_components'],
                                      function=pca_denoising),
                                      name='func_denoise')
-preproc.connect([(remove_vol, func_denoise, [('out_file', 'dwi')])])
+preproc.connect([(remove_vol, func_denoise, [('out_file', 'in_file')])])
 
 # motion correction
 moco = Node(nipy.SpaceTimeRealigner(),name="moco")
@@ -144,12 +144,12 @@ preproc.connect([(moco, regress, [('out_file', 'in_file')]),
 ############################
 
 # Thermal noise removal
-struct_denoise = Node(util.Function(input_names=['dwi'],
+struct_denoise = Node(util.Function(input_names=['in_file'],
                                     output_names=['denoised_data', 'sigmas',
                                                   'preserved_components'],
                                      function=pca_denoising),
                                      name='struct_denoise')
-preproc.connect([(selectfiles, struct_denoise, [('brain', 'dwi')])])
+preproc.connect([(selectfiles, struct_denoise, [('brain', 'in_file')])])
 
 # Split structural image in individual echo times
 img_split = Node(fsl.Split(dimension='t', output_type='NIFTI_GZ'),
