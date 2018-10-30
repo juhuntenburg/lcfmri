@@ -246,6 +246,7 @@ def pca_denoising(in_file, ps=2, overcomplete=True):
     import nibabel as nb
     import os
     from nipype.utils.filemanip import split_filename
+    from functions import pca_noise_classifier
 
     # Load data
     img = nb.load(in_file)

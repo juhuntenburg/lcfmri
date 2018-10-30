@@ -1,4 +1,5 @@
-in_filefrom nipype.pipeline.engine import Node, Workflow, MapNode
+from glob import glob
+from nipype.pipeline.engine import Node, Workflow, MapNode
 import nipype.interfaces.fsl as fsl
 import nipype.interfaces.utility as util
 import nipype.interfaces.io as nio
@@ -9,6 +10,7 @@ import nipype.interfaces.freesurfer as fs
 import nipype.algorithms.rapidart as ra
 from functions import strip_rois_func, motion_regressors, median, selectindex, nilearn_denoise, weigthed_avg, pca_denoising
 
+study = ''
 dataset = 'LC_rsfMRI_03'
 struct = '20'
 lc = '24'
@@ -37,7 +39,7 @@ session_infosource.iterables=[('session', resting)]
 # select files
 templates = {'rest' : '*{dataset}*/*/*_{session}/*{session}.nii.gz',
              'brain' : '*{dataset}*/*/*_{struct}/*{struct}.nii.gz',
-             'lc' : '*{dataset}*/*/*_{lc}/*{lc}.nii.gz',
+             #'lc' : '*{dataset}*/*/*_{lc}/*{lc}.nii.gz',
              #'lc_mask' :
              #'lc2brain_init' :
            }
@@ -64,16 +66,17 @@ remove_vol.inputs.t_min = vol_to_remove
 preproc.connect([(selectfiles, remove_vol, [('rest', 'in_file')])])
 
 # Thermal noise removal
-func_denoise = Node(util.Function(input_names=['in_file'],
-                                    output_names=['denoised_data', 'sigmas',
-                                                  'preserved_components'],
-                                     function=pca_denoising),
-                                     name='func_denoise')
-preproc.connect([(remove_vol, func_denoise, [('out_file', 'in_file')])])
+# func_denoise = Node(util.Function(input_names=['in_file'],
+#                                     output_names=['denoised_data', 'sigmas',
+#                                                   'preserved_components'],
+#                                      function=pca_denoising),
+#                                      name='func_denoise')
+# preproc.connect([(remove_vol, func_denoise, [('out_file', 'in_file')])])
 
 # motion correction
 moco = Node(nipy.SpaceTimeRealigner(),name="moco")
-preproc.connect([(func_denoise, moco, [('denoised_data', 'in_file')])])
+#preproc.connect([(func_denoise, moco, [('denoised_data', 'in_file')])])
+preproc.connect([(remove_vol, moco, [('out_file', 'in_file')])])
 
 # compute median
 median = Node(util.Function(input_names=['in_files'],
@@ -87,12 +90,12 @@ preproc.connect([(moco, median, [('out_file', 'in_files')])])
 biasfield = Node(ants.segmentation.N4BiasFieldCorrection(dimension=3,
                     n_iterations=[150,100,50,30], convergence_threshold=1e-11,
                     bspline_fitting_distance = 10, bspline_order = 4,
-                    shrink_factor = 2,),name='biasfield')
+                    shrink_factor = 2, output_image='func_median.nii.gz'),name='biasfield')
 preproc.connect([(median, biasfield, [('median_file', 'input_image')])])
 
 # compute functional mask
 func_mask = Node(afni.Automask(dilate=1, args='-peels 3',
-                               outputtype='NIFTI_GZ'),
+                               outputtype='NIFTI_GZ', out_file='func_mask.nii.gz'),
                  name='func_mask')
 
 preproc.connect([(biasfield, func_mask, [('output_image', 'in_file')])])
@@ -198,4 +201,32 @@ preproc.connect([(img_merge, weighted_avg, [('merged_file', 'in_file')]),
 # Registration #
 ################
 
-#preproc.run()
+
+#############
+# Save data #
+#############
+
+# Sink relevant files
+func_sink = Node(nio.DataSink(parameterization=False),name='func_sink')
+func_sink.inputs.base_directory = out_dir + dataset
+func_sink.inputs.regexp_substitutions = [('corr_.*_roi_denoised', 'func_final'),
+                                         ('corr_.*_roi','func_moco')]
+preproc.connect([(session_infosource, func_sink, [('session', 'container')]),
+                 (moco, func_sink, [('out_file', '@realigned_file'),
+                                    ('par_file', 'confounds.@orig_motion')]),
+                 (func_mask, func_sink, [('out_file', '@mask')]),
+                 (biasfield, func_sink, [('output_image', '@median')]),
+                 (artefact, func_sink, [('norm_files', 'confounds.@norm_motion'),
+                                   ('outlier_files', 'confounds.@outlier_files'),
+                                   ('intensity_files', 'confounds.@intensity_files'),
+                                   ('statistic_files', 'confounds.@outlier_stats'),
+                                   ('plot_files', 'confounds.@outlier_plots')]),
+                 (motreg, func_sink, [('out_files', 'confounds.@motreg')]),
+                 (regress, func_sink, [('denoised_img', '@denoised_img'),
+                                  ('denoised_data', '@denoised_data'),
+                                  ('confounds', 'confounds.@confounds')])])
+
+
+
+
+preproc.run(plugin='MultiProc', plugin_args={'n_procs' : 3})
