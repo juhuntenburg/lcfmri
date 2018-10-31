@@ -15,37 +15,43 @@
 % Posted by Bruce Spottiswoode on 22 December 2008
 % 2010/07/23  Modified by Carey Smith
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Replace with your images
-% if(~exist('IM'))
-%   load 'IM.mat'                               %Load complex image
-% end
-close all
-clear all
 
-data_dir='/home/julia/projects/lc/raw/20181006_165517_JH_LC_rsfMRI_03_1_1/25/';
+addpath(genpath('/home/shemesh/julia/lcfmri/matlab/'));
+
+data_dir='/home/shemesh/julia/data/25/';
 scan='3';
 acq_params=readBrukerParamFile(strcat(data_dir,'acqp'));
 method_params=readBrukerParamFile(strcat(data_dir,'method'));
 visu_params=readBrukerParamFile(strcat(data_dir, filesep, 'pdata', filesep, scan, filesep, 'visu_pars'));
 [data, visu] = readBruker2dseq(strcat(data_dir, filesep, 'pdata', filesep, scan, filesep,'2dseq'), visu_params);
+data=squeeze(data);
 
 %%%%% load mask mask
-
+mask_struct=load(strcat(data_dir, 'func_mask.mat'));
+mask=mask_struct.data;
 
 [nx,ny,nz,nt,ncoil]=size(data);
 
-for t=1:nt %%%% loop over timepoints
+corrected_real_data = zeros([nx,ny,nz,nt]); 
+
+parfor z=1:nz %%%% loop over timepoints
     
-    for z=1:nz %%%% loop over slices
+    disp(z)
+    im_mask = mask(:,:,z);
     
+    for t=1:nt %%%% loop over slices
+   
         UPIm = zeros([nx,ny,ncoil]); 
-        im_mask = mask(:,:,z);
+        orig_data = squeeze(data(:,:,z,t,:));
     
-        for c=1:ncoil   %%%% loop over coils
+        for c=1:ncoil;   %%%% loop over coils
     
-            IM=data(:,:,z,t,c);
+            IM=orig_data(:,:,c);
             im_mag   = abs(IM);                  %Magnitude image
             im_phase = angle(IM);                %Phase image
+            
+            tmp = im_mag.*double(im_mask); 
+            mag_max = max(tmp(:));
 
             im_unwrapped = nan(size(IM));        %Initialze the output unwrapped version of the phase
             adjoin = zeros(size(IM));            %Zero starting matrix for adjoin matrix
@@ -55,20 +61,21 @@ for t=1:nt %%%% loop over timepoints
             im_phase_quality = PhaseDerivativeVariance_r1(im_phase);
 
             %% Automatically (default) or manually identify starting seed point on a phase quality map 
-            minp = im_phase_quality(2:end-1, 2:end-1); minp = min(minp(:));
-            maxp = im_phase_quality(2:end-1, 2:end-1); maxp = max(maxp(:));
-            if(0)    % Chose starting point interactively
-            %   figure; imagesc(im_phase_quality,[minp maxp]), colormap(gray), colorbar, axis square, axis off; title('Phase quality map'); 
-              uiwait(msgbox('Select known true phase reference phase point. Black = high quality phase; white = low quality phase.','Phase reference point','modal'));
-              [xpoint,ypoint] = ginput(1);                %Select starting point for the guided floodfill algorithm
-              colref = round(xpoint);
-              rowref = round(ypoint);
-              close;  % close the figure;
-            else   % Chose starting point = max. intensity, but avoid an edge pixel
-              [rowrefn,colrefn] = find(im_mag(2:end-1, 2:end-1) >= 0.9*mag_max);
-              rowref = rowrefn(1)+1; % choose the 1st point for a reference (known good value)
-              colref = colrefn(1)+1; % choose the 1st point for a reference (known good value)
-            end
+%             minp = im_phase_quality(2:end-1, 2:end-1); minp = min(minp(:));
+%             maxp = im_phase_quality(2:end-1, 2:end-1); maxp = max(maxp(:));
+% %             if(0)    % Chose starting point interactively
+%             figure; imagesc(im_phase_quality,[minp maxp]), colormap(gray), colorbar, axis square, axis off; title('Phase quality map'); 
+%             uiwait(msgbox('Select known true phase reference phase point. Black = high quality phase; white = low quality phase.','Phase reference point','modal'));
+%             [xpoint,ypoint] = ginput(1);                %Select starting point for the guided floodfill algorithm
+            colref = 60; %round(xpoint);
+            rowref = 20; %round(ypoint);
+            %close;  % close the figure;
+%             else   % Chose starting point = max. intensity, but avoid an edge pixel
+%               [rowrefn,colrefn] = find(im_mag(2:end-1, 2:end-1) >= 0.99*mag_max);
+%               %[rowrefn,colrefn] = 14, 64;
+%               rowref = rowrefn(1)+1; % choose the 1st point for a reference (known good value)
+%               colref = colrefn(1)+1; % choose the 1st point for a reference (known good value)
+%             end
 
             %% Unwrap
             im_unwrapped(rowref,colref) = im_phase(rowref,colref);                          %Save the unwrapped values
@@ -82,8 +89,6 @@ for t=1:nt %%%% loop over timepoints
             UPIm(:,:,c) = im_unwrapped; 
         end
         
-        data_real_coils = data(:,:,z,t,:).*(exp(-1i.*UPIm));
-        data_real_combined = sqrt(mean(real(data_real_coils),5));
-        
+        corrected_real_data(:,:,z,t) = sqrt(mean(real(orig_data.*(exp(-1i.*UPIm))),3));
     end
 end
