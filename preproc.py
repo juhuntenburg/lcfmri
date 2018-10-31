@@ -8,7 +8,7 @@ import nipype.interfaces.ants as ants
 import nipype.interfaces.afni as afni
 import nipype.interfaces.freesurfer as fs
 import nipype.algorithms.rapidart as ra
-from functions import strip_rois_func, motion_regressors, median, selectindex, nilearn_denoise, weigthed_avg, pca_denoising
+from functions import strip_rois_func, motion_regressors, median, selectindex, nilearn_denoise, weighted_avg, pca_denoising
 
 study = ''
 dataset = 'LC_rsfMRI_03'
@@ -169,12 +169,12 @@ struct_bias = MapNode(ants.N4BiasFieldCorrection(dimension=3,
 preproc.connect([(img_split, struct_bias, [('out_files', 'input_image')])])
 
 # Merge corrected files again
-img_merge = Node(fsl.Merge(dimension='t', output_type='NIFTI_GZ'),
+img_merge = Node(fsl.Merge(dimension='t', output_type='NIFTI_GZ', merged_file='struct_corr.nii.gz'),
                  name='img_merge')
 preproc.connect([(struct_bias, img_merge, [('output_image','in_files')])])
 
 # Create average across all echo times
-average = Node(fsl.MeanImage(), name='struct_average')
+average = Node(fsl.MeanImage(out_file='struct_corr_avg.nii.gz'), name='struct_average')
 preproc.connect([(img_merge, average, [('merged_file','in_file')])])
 
 # Skull stripping on first echo time (highest SNR)
@@ -185,14 +185,14 @@ preproc.connect([(struct_bias, skullstrip, [(('output_image', selectindex, [0]),
                                               'in_file')])])
 
 # Binarize mask
-struct_mask = Node(fs.Binarize(out_type = 'nii.gz', ), name='struct_mask')
+struct_mask = Node(fs.Binarize(out_type = 'nii.gz', min=0.1, binary_file='struct_mask.nii.gz'), name='struct_mask')
 preproc.connect([(skullstrip, struct_mask, [('out_file','in_file')])])
 
 # Create masked, weighted image for coregistration
 weighted_avg = Node(util.Function(input_names=['in_file', 'mask_file'],
-                                    output_names=['out_file'],
-                                     function=pca_denoising),
-                                     name='weighted_avg')
+                                  output_names=['out_file'],
+                                  function=weighted_avg),
+                                  name='weighted_avg')
 preproc.connect([(img_merge, weighted_avg, [('merged_file', 'in_file')]),
                  (struct_mask, weighted_avg, [('binary_file', 'mask_file')])])
 
@@ -208,7 +208,7 @@ preproc.connect([(img_merge, weighted_avg, [('merged_file', 'in_file')]),
 
 # Sink relevant files
 func_sink = Node(nio.DataSink(parameterization=False),name='func_sink')
-func_sink.inputs.base_directory = out_dir + dataset
+func_sink.inputs.base_directory = out_dir + dataset + '/func'
 func_sink.inputs.regexp_substitutions = [('corr_.*_roi_denoised', 'func_final'),
                                          ('corr_.*_roi','func_moco')]
 preproc.connect([(session_infosource, func_sink, [('session', 'container')]),
@@ -226,7 +226,13 @@ preproc.connect([(session_infosource, func_sink, [('session', 'container')]),
                                   ('denoised_data', '@denoised_data'),
                                   ('confounds', 'confounds.@confounds')])])
 
+struct_sink = Node(nio.DataSink(parameterization=False),name='struct_sink')
+struct_sink.inputs.base_directory = out_dir + dataset + '/struct'
+preproc.connect([(struct_mask, struct_sink, [('binary_file', '@mask')]),
+                 (img_merge, struct_sink, [('merged_file', '@corrected')]),
+                 (average, struct_sink, [('out_file', '@corrected_avg')]),
+                 (weighted_avg, struct_sink, [('out_file', '@weighted_avg')])
+                 ])
 
 
-
-preproc.run(plugin='MultiProc', plugin_args={'n_procs' : 3})
+preproc.run(plugin='MultiProc', plugin_args={'n_procs' : 2})

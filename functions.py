@@ -79,7 +79,7 @@ def nilearn_denoise(in_file, brain_mask, motreg_file, outlier_file, bandpass, tr
     return os.path.abspath(img_fname), os.path.abspath(data_fname), confound_fname
 
 
-def weigthed_avg(in_file, mask_file=None):
+def weighted_avg(in_file, mask_file=None):
     import nibabel as nb
     import numpy as np
     import os
@@ -96,10 +96,10 @@ def weigthed_avg(in_file, mask_file=None):
         weighted_data *= nb.load(mask_file).get_data()
 
     _, base, _ = split_filename(in_file)
-    fname = base + '_weighted_avg.nii.gz'
+    fname = base + '_weighted.nii.gz'
     nb.save(nb.Nifti1Image(weighted_data, img.affine, img.header), fname)
 
-    return fname
+    return os.path.abspath(fname)
 
 
 '''
