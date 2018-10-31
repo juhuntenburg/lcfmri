@@ -185,7 +185,7 @@ preproc.connect([(struct_bias, skullstrip, [(('output_image', selectindex, [0]),
                                               'in_file')])])
 
 # Binarize mask
-struct_mask = Node(fs.Binarize(out_type = 'nii.gz'), name='struct_mask')
+struct_mask = Node(fs.Binarize(out_type = 'nii.gz', ), name='struct_mask')
 preproc.connect([(skullstrip, struct_mask, [('out_file','in_file')])])
 
 # Create masked, weighted image for coregistration
