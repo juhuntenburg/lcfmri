@@ -16,9 +16,9 @@
 % 2010/07/23  Modified by Carey Smith
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-addpath(genpath('/home/shemesh/julia/lcfmri/matlab/'));
+addpath(genpath('/home/julia/workspace/lcfmri/matlab/'));
 
-data_dir='/home/shemesh/julia/data/25/';
+data_dir='/home/julia/projects/lc/raw/20181006_165517_JH_LC_rsfMRI_03_1_1/25/';
 scan='3';
 acq_params=readBrukerParamFile(strcat(data_dir,'acqp'));
 method_params=readBrukerParamFile(strcat(data_dir,'method'));
@@ -33,8 +33,9 @@ mask=mask_struct.data;
 [nx,ny,nz,nt,ncoil]=size(data);
 
 corrected_real_data = zeros([nx,ny,nz,nt]); 
+corrected_orig_data = zeros([nx,ny,nz,nt]); 
 
-parfor z=1:nz %%%% loop over timepoints
+for z=1:nz %%%% loop over timepoints
     
     disp(z)
     im_mask = mask(:,:,z);
@@ -90,5 +91,6 @@ parfor z=1:nz %%%% loop over timepoints
         end
         
         corrected_real_data(:,:,z,t) = sqrt(mean(real(orig_data.*(exp(-1i.*UPIm))),3));
+        corrected_orig_data(:,:,z,t) = sqrt(mean(real(orig_data),3));
     end
 end

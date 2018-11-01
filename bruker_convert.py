@@ -4,8 +4,8 @@ import os
 from glob import glob
 from bruker2nifti.converter import Bruker2Nifti
 
-data_in = '/home/julia/projects/lc/raw/visual_clem/'
-data_out = '/home/julia/projects/lc/nifti/visual_clem_nifti/'
+data_in = '/home/julia/projects/lc/raw/20181101_090855_JH_LC_rsfMRI_07_1_1/'
+data_out = '/home/julia/projects/lc/nifti/20181101_090855_JH_LC_rsfMRI_07_1_1_nifti/'
 
 if not os.path.isdir(data_out):
     os.mkdir(data_out)
