@@ -317,9 +317,9 @@ def pca_denoising(in_file, ps=2, overcomplete=True):
         sig2 = sig2 / wei[..., 0]
 
     _, base, _ = split_filename(in_file)
-    den_path = base + 'mp_denoised.nii.gz'
-    sig_path = base + 'mp_sigmas.nii.gz'
-    comp_path = base + 'mp_comps.nii.gz'
+    den_path = base + '_mp_denoised.nii.gz'
+    sig_path = base + '_mp_sigmas.nii.gz'
+    comp_path = base + '_mp_comps.nii.gz'
     nb.save(nb.Nifti1Image(den, img.affine, img.header), den_path)
     nb.save(nb.Nifti1Image(np.sqrt(sig2), img.affine, img.header), sig_path)
     nb.save(nb.Nifti1Image(ncomps, img.affine, img.header), comp_path)
