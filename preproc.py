@@ -8,7 +8,8 @@ import nipype.interfaces.ants as ants
 import nipype.interfaces.afni as afni
 import nipype.interfaces.freesurfer as fs
 import nipype.algorithms.rapidart as ra
-from functions import strip_rois_func, motion_regressors, median, selectindex, nilearn_denoise, weighted_avg, pca_denoising
+from functions import strip_rois_func, motion_regressors, median, selectindex,\
+    nilearn_denoise, weighted_avg, pca_denoising
 
 study = ''
 dataset = 'LC_rsfMRI_03'
@@ -23,7 +24,7 @@ bandpass = [None, 0.01]  # rather 0.3 but too high for our temporal resolution
 
 # directories
 working_dir = '/home/julia/projects/lc/working_dir/'
-data_dir= '/home/julia/projects/lc/nifti/'
+data_dir = '/home/julia/projects/lc/nifti/'
 out_dir = '/home/julia/projects/lc/processed/'
 
 # main workflow

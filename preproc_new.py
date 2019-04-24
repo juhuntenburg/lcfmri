@@ -10,8 +10,8 @@ import nipype.interfaces.freesurfer as fs
 import nipype.algorithms.rapidart as ra
 from functions import strip_rois_func, motion_regressors, median, selectindex, nilearn_denoise, weighted_avg, pca_denoising
 
-dataset = 'JH_20181214_rsfmri_test02'
-resting = '45'
+dataset = 'JH_20181220_lcrsfmri_test03'
+resting = '16'
 vol_to_remove = 25
 motion_norm = 0.3
 z_thr = 3
@@ -55,16 +55,19 @@ remove_vol.inputs.t_min = vol_to_remove
 preproc.connect([(selectfiles, remove_vol, [('rest', 'in_file')])])
 
 # Thermal noise removal
-func_denoise = Node(util.Function(input_names=['in_file'],
-                                    output_names=['denoised_data', 'sigmas',
-                                                  'preserved_components'],
-                                     function=pca_denoising),
-                                     name='func_denoise')
-preproc.connect([(remove_vol, func_denoise, [('out_file', 'in_file')])])
+# func_denoise = Node(util.Function(input_names=['in_file'],
+#                                     output_names=['denoised_data', 'sigmas',
+#                                                   'preserved_components'],
+#                                      function=pca_denoising),
+#                                      name='func_denoise')
+# preproc.connect([(remove_vol, func_denoise, [('out_file', 'in_file')])])
 
 # motion correction
 moco = Node(nipy.SpaceTimeRealigner(slice_times='asc_alt_2', tr=tr, slice_info=[2,1]),name="moco")
-preproc.connect([(func_denoise, moco, [('denoised_data', 'in_file')])])
+#preproc.connect([(func_denoise, moco, [('denoised_data', 'in_file')])])
+preproc.connect([(remove_vol, moco, [('out_file
+', 'in_file')])])
+
 
 # compute median
 median = Node(util.Function(input_names=['in_files'],
