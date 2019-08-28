@@ -99,8 +99,8 @@ artefact = Node(ra.ArtifactDetect(save_plot=True,
                                   mask_type='file',
                                   norm_threshold=motion_norm,
                                   zintensity_threshold=z_thr,
-                                  use_differences=[True,False]),
-                 name='artefact')
+                                  use_differences=[True, False]),
+                name='artefact')
 
 preproc.connect([(moco, artefact, [('out_file', 'realigned_files'),
                                    ('par_file', 'realignment_parameters')]),

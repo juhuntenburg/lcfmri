@@ -31,8 +31,8 @@ def nilearn_denoise(in_file, brain_mask, motreg_file, outlier_file, bandpass, tr
     from nipype.utils.filemanip import split_filename
 
     # reload niftis to round affines so that nilearn doesn't complain
-    #csf_nii=nb.Nifti1Image(nb.load(csf_mask).get_data(), np.around(nb.load(csf_mask).get_affine(), 2), nb.load(csf_mask).get_header())
-    #time_nii=nb.Nifti1Image(nb.load(in_file).get_data(),np.around(nb.load(in_file).get_affine(), 2), nb.load(in_file).get_header())
+    # csf_nii=nb.Nifti1Image(nb.load(csf_mask).get_data(), np.around(nb.load(csf_mask).get_affine(), 2), nb.load(csf_mask).get_header())
+    # time_nii=nb.Nifti1Image(nb.load(in_file).get_data(),np.around(nb.load(in_file).get_affine(), 2), nb.load(in_file).get_header())
 
     # infer shape of confound array
     confound_len = nb.load(in_file).get_data().shape[3]
@@ -53,15 +53,15 @@ def nilearn_denoise(in_file, brain_mask, motreg_file, outlier_file, bandpass, tr
     # load motion regressors
     motion_regressor=np.genfromtxt(motreg_file)
 
-    # extract high variance confounds in wm/csf masks from motion corrected data
+    # extract high variance confounds in brain mask ~ global signal regressor
     #csf_regressor=high_variance_confounds(time_nii, mask_img=csf_nii, detrend=True)
-    #global_regressor=high_variance_confounds(time_nii, mask_img=brain_nii, detrend=True)
+    global_regressor=high_variance_confounds(in_file, mask_img=brain_mask, n_confounds=1, detrend=True)
 
     # create Nifti Masker for denoising
     denoiser=NiftiMasker(mask_img=brain_mask, standardize=True, detrend=True, high_pass=bandpass[1], low_pass=bandpass[0], t_r=tr)
 
     # denoise and return denoise data to img
-    confounds=np.hstack((outlier_regressor, motion_regressor)) # csf regressor
+    confounds=np.hstack((outlier_regressor, motion_regressor, global_regressor))
     denoised_data=denoiser.fit_transform(in_file, confounds=confounds)
     denoised_img=denoiser.inverse_transform(denoised_data)
 
